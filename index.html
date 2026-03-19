@@ -787,12 +787,12 @@ async function fetchLiveData() {
     if (indexData && indexData.length > 0) {
       const vnIndex = indexData.find(d => d.name === 'VNINDEX');
       if (vnIndex) {
-        const vnPrice = vnIndex.index || 1699.13;
-        const vnChange = vnIndex.change || 0;
-        const vnPercent = vnIndex.percent || 0;
+        const vnPrice = vnIndex.index || '1,699.13';
+        const vnChange = vnIndex.change || '0';
+        const vnPercent = parseFloat(String(vnIndex.percent).replace(/,/g, '')) || 0;
         const vnColor = vnPercent >= 0 ? 'var(--green)' : 'var(--red)';
         const vnSign = vnPercent >= 0 ? '+' : '';
-        document.getElementById('vnindex-display').innerHTML = `VN-Index: <strong style="color:${vnColor}">${vnPrice.toLocaleString('en-US', {maximumFractionDigits: 2})}</strong> <span style="color:${vnColor}">${vnSign}${vnPercent.toFixed(2)}%</span>`;
+        document.getElementById('vnindex-display').innerHTML = `VN-Index: <strong style="color:${vnColor}">${vnPrice}</strong> <span style="color:${vnColor}">${vnSign}${vnPercent.toFixed(2)}%</span>`;
       }
     }
 
