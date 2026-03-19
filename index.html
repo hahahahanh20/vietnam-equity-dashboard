@@ -136,6 +136,35 @@
   .legend { display: flex; gap: 16px; padding: 8px 16px; font-size: 11px; color: var(--text2); border-top: 1px solid var(--border); }
   .legend-item { display: flex; align-items: center; gap: 4px; }
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Capital Allocation Panel */
+  .allocation-input-section { display: flex; gap: 12px; padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+  .allocation-input-group { display: flex; align-items: center; gap: 8px; }
+  .allocation-input-group label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; min-width: 140px; }
+  .allocation-input { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 12px; width: 200px; }
+  .allocation-input::placeholder { color: var(--text2); }
+  .allocation-select { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 12px; }
+  .allocation-btn { padding: 6px 14px; background: var(--sage); border: none; color: var(--bg); border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .allocation-btn:hover { transform: scale(1.05); }
+  .allocation-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .allocation-table { width: 100%; }
+  .allocation-summary { padding: 12px 16px; background: var(--surface2); border-top: 1px solid var(--border); font-size: 12px; }
+  .allocation-summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .allocation-summary-row:last-child { margin-bottom: 0; }
+  .allocation-cash-note { margin-top: 8px; padding: 8px 12px; background: rgba(194,214,155,0.1); border-left: 3px solid var(--sage); color: var(--sage); font-size: 11px; }
+
+  .rebalancing-section { padding: 16px; border-top: 1px solid var(--border); }
+  .rebalancing-section h3 { font-size: 13px; color: var(--sage); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .rebalance-item { margin-bottom: 8px; font-size: 12px; padding-left: 12px; border-left: 2px solid transparent; }
+  .rebalance-item.increase { border-left-color: var(--green); color: var(--green); }
+  .rebalance-item.exit { border-left-color: var(--red); color: var(--red); }
+  .rebalance-empty { font-size: 12px; color: var(--text2); }
+
+  .action-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+  .action-buy { background: rgba(63,185,80,0.15); color: var(--green); }
+  .action-skip { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .action-exit { background: rgba(248,81,73,0.15); color: var(--red); }
 </style>
 </head>
 <body>
@@ -230,6 +259,57 @@
       <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Sell / Strong Sell</div>
       <div class="legend-item" style="margin-left:auto;">Sources: 20in20 Research; Sample Data</div>
     </div>
+  </div>
+
+  <!-- Capital Allocation Panel -->
+  <div class="panel" style="margin-top:16px;">
+    <div class="panel-header">
+      <h2>💰 Capital Allocation</h2>
+      <span style="font-size:11px;color:var(--text2);">VND-based portfolio builder</span>
+    </div>
+
+    <!-- Input Section -->
+    <div class="allocation-input-section">
+      <div class="allocation-input-group">
+        <label>Total Capital (VND)</label>
+        <input type="text" class="allocation-input" id="capital-input" value="1,000,000,000" placeholder="1,000,000,000" oninput="formatCapitalInput()">
+      </div>
+      <div class="allocation-input-group">
+        <label>Strategy</label>
+        <select class="allocation-select" id="strategy-select" onchange="runAllocation()">
+          <option value="signal-weighted">Signal-Weighted</option>
+          <option value="equal-buy">Equal Weight (Buy only)</option>
+          <option value="top3">Top 3 Concentration</option>
+        </select>
+      </div>
+      <button class="allocation-btn" onclick="runAllocation()">Allocate</button>
+    </div>
+
+    <!-- Allocation Table -->
+    <div class="panel-body">
+      <div style="overflow-x:auto;">
+        <table class="allocation-table" id="allocation-table">
+          <thead>
+            <tr style="background:var(--forest);">
+              <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Ticker</th>
+              <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Signal</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Current Price</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Allocated Amount</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Suggested Shares</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Weight %</th>
+              <th style="text-align:center;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="allocation-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Summary Section -->
+    <div class="allocation-summary" id="allocation-summary"></div>
+
+    <!-- Rebalancing Suggestions -->
+    <div class="rebalancing-section" id="rebalancing-section"></div>
   </div>
 </div>
 
@@ -703,6 +783,154 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('modal-overlay').classList.remove('active');
 });
 
+// ========== CAPITAL ALLOCATION ==========
+function formatCapitalInput() {
+  const input = document.getElementById('capital-input');
+  let value = input.value.replace(/[^0-9]/g, '');
+  if (value) {
+    value = parseInt(value).toLocaleString('en-US');
+    input.value = value;
+  }
+}
+
+function runAllocation() {
+  const capitalStr = document.getElementById('capital-input').value.replace(/,/g, '');
+  const capital = parseInt(capitalStr) || 1000000000;
+  const strategy = document.getElementById('strategy-select').value;
+
+  // Get buy signals (STRONG BUY + BUY only)
+  const buyStocks = enriched.filter(s => s.signal.cls === 'buy' || s.signal.cls === 'strong-buy');
+
+  if (buyStocks.length === 0) {
+    document.getElementById('allocation-body').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text2);">No BUY signals available for allocation.</td></tr>';
+    document.getElementById('allocation-summary').innerHTML = '<div style="color:var(--text2);">Add some BUY signals to start allocating capital.</div>';
+    document.getElementById('rebalancing-section').innerHTML = '';
+    return;
+  }
+
+  let allocations = [];
+
+  if (strategy === 'signal-weighted') {
+    // Weight by composite score
+    const totalComposite = buyStocks.reduce((a, s) => a + s.composite, 0);
+    buyStocks.forEach(s => {
+      const ratio = s.composite / totalComposite;
+      const amount = Math.floor(ratio * capital);
+      allocations.push({ ...s, allocAmount: amount });
+    });
+  } else if (strategy === 'equal-buy') {
+    // Equal split
+    const amountEach = Math.floor(capital / buyStocks.length);
+    buyStocks.forEach(s => {
+      allocations.push({ ...s, allocAmount: amountEach });
+    });
+  } else if (strategy === 'top3') {
+    // Top 3 concentration
+    const sorted = [...buyStocks].sort((a, b) => b.composite - a.composite).slice(0, 3);
+    const weights_top = [0.5, 0.3, 0.2];
+    sorted.forEach((s, i) => {
+      const amount = Math.floor(capital * (weights_top[i] || 0));
+      allocations.push({ ...s, allocAmount: amount });
+    });
+  }
+
+  // Add non-buy stocks as zero allocation
+  const nonBuyStocks = enriched.filter(s => !(s.signal.cls === 'buy' || s.signal.cls === 'strong-buy'));
+  nonBuyStocks.forEach(s => {
+    allocations.push({ ...s, allocAmount: 0 });
+  });
+
+  // Calculate shares and sort by allocated amount desc
+  allocations = allocations.map(s => ({
+    ...s,
+    shares: Math.floor(s.allocAmount / s.price / 100) * 100 // round to lots of 100
+  })).sort((a, b) => b.allocAmount - a.allocAmount);
+
+  renderAllocationTable(allocations, capital);
+  renderAllocationSummary(allocations, capital);
+  renderRebalancingSuggestions(allocations);
+}
+
+function renderAllocationTable(allocations, capital) {
+  const totalAllocated = allocations.reduce((a, s) => a + s.allocAmount, 0);
+  let tbody = '';
+  allocations.forEach(s => {
+    const isBuy = s.signal.cls === 'buy' || s.signal.cls === 'strong-buy';
+    const isSell = s.signal.cls === 'sell' || s.signal.cls === 'strong-sell';
+    const weight = totalAllocated > 0 ? ((s.allocAmount / totalAllocated) * 100).toFixed(1) : 0;
+
+    let actionBadge = '';
+    if (isBuy && s.allocAmount > 0) {
+      actionBadge = '<span class="action-badge action-buy">BUY</span>';
+    } else if (s.signal.cls === 'hold') {
+      actionBadge = '<span class="action-badge action-skip">SKIP</span>';
+    } else if (isSell) {
+      actionBadge = '<span class="action-badge action-exit">EXIT</span>';
+    }
+
+    tbody += `<tr style="${isBuy && s.allocAmount > 0 ? 'background:rgba(194,214,155,0.08)' : ''}">
+      <td style="font-weight:700;color:var(--sage);padding:7px 10px;">${s.ticker}</td>
+      <td style="padding:7px 10px;"><span class="signal ${s.signal.cls}">${s.signal.label}</span></td>
+      <td style="text-align:right;padding:7px 10px;">${fmtVND(s.price)}</td>
+      <td style="text-align:right;padding:7px 10px;font-weight:600;">${s.allocAmount > 0 ? fmtVND(s.allocAmount) : '0'} VND</td>
+      <td style="text-align:right;padding:7px 10px;">${s.shares > 0 ? fmtVND(s.shares) : '—'}</td>
+      <td style="text-align:right;padding:7px 10px;">${s.allocAmount > 0 ? weight : '0.0'}%</td>
+      <td style="text-align:center;padding:7px 10px;">${actionBadge}</td>
+    </tr>`;
+  });
+  document.getElementById('allocation-body').innerHTML = tbody;
+}
+
+function renderAllocationSummary(allocations, capital) {
+  const totalAllocated = allocations.reduce((a, s) => a + s.allocAmount, 0);
+  const remaining = capital - totalAllocated;
+  const remainingPct = (remaining / capital) * 100;
+
+  let html = `
+    <div class="allocation-summary-row">
+      <span>Total Capital:</span>
+      <strong>${fmtVND(capital)} VND</strong>
+    </div>
+    <div class="allocation-summary-row">
+      <span>Total Allocated:</span>
+      <strong style="color:var(--green)">${fmtVND(totalAllocated)} VND</strong>
+    </div>
+    <div class="allocation-summary-row">
+      <span>Remaining Cash:</span>
+      <strong style="color:${remaining > capital * 0.05 ? 'var(--yellow)' : 'var(--text)'}">${fmtVND(remaining)} VND (${remainingPct.toFixed(1)}%)</strong>
+    </div>
+  `;
+
+  if (remaining > capital * 0.05) {
+    const topBuy = allocations.filter(s => s.allocAmount > 0).sort((a, b) => b.composite - a.composite)[0];
+    html += `<div class="allocation-cash-note">Remaining cash: ${fmtVND(remaining)} VND — consider increasing allocation to ${topBuy ? topBuy.ticker : 'top picks'}</div>`;
+  }
+
+  document.getElementById('allocation-summary').innerHTML = html;
+}
+
+function renderRebalancingSuggestions(allocations) {
+  const sells = allocations.filter(s => s.signal.cls === 'sell' || s.signal.cls === 'strong-sell');
+  const strongBuys = allocations.filter(s => s.signal.cls === 'strong-buy');
+  const topBuy = allocations.filter(s => s.allocAmount > 0).sort((a, b) => b.composite - a.composite)[0];
+
+  let html = '<h3>Rebalancing Suggestions</h3>';
+
+  if (sells.length === 0 && strongBuys.length === 0) {
+    html += '<div class="rebalance-empty">No rebalancing suggestions at this time.</div>';
+  } else {
+    sells.forEach(s => {
+      const upside = parseFloat(s.upside);
+      html += `<div class="rebalance-item exit">EXIT ${s.ticker} — Composite ${s.composite}, reallocate capital to ${topBuy ? topBuy.ticker : 'top BUY'} (+${upside}% upside)</div>`;
+    });
+    strongBuys.forEach(s => {
+      html += `<div class="rebalance-item increase">INCREASE ${s.ticker} — Composite ${s.composite}, strongest signal in portfolio</div>`;
+    });
+  }
+
+  document.getElementById('rebalancing-section').innerHTML = html;
+}
+
 // ========== INTERACTIONS ==========
 function updateWeights() {
   weights.fund = parseInt(document.getElementById('w-fund').value);
@@ -712,7 +940,7 @@ function updateWeights() {
   document.getElementById('wv-fund').textContent = Math.round(weights.fund/total*100) + '%';
   document.getElementById('wv-tech').textContent = Math.round(weights.tech/total*100) + '%';
   document.getElementById('wv-mkt').textContent = Math.round(weights.mkt/total*100) + '%';
-  enrichStocks(); renderKPIs(); renderHeatmap(); renderTable();
+  enrichStocks(); renderKPIs(); renderHeatmap(); renderTable(); runAllocation();
 }
 
 function switchTab(view, el) {
@@ -910,6 +1138,7 @@ function init() {
   renderKPIs();
   renderHeatmap();
   renderTable();
+  runAllocation();
 
   // Start live data fetching and auto-refresh
   startAutoRefresh();
