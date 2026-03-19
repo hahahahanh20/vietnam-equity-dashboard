@@ -137,6 +137,38 @@
   .legend-item { display: flex; align-items: center; gap: 4px; }
   .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
 
+  /* Portfolio Tracker */
+  .portfolio-alert-banner { margin-bottom: 12px; padding: 12px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; border-left: 4px solid transparent; display: flex; align-items: center; gap: 8px; }
+  .portfolio-alert-banner.sell { background: rgba(248,81,73,0.15); border-left-color: var(--red); color: var(--red); animation: pulse-alert 2s infinite; }
+  .portfolio-alert-banner.healthy { background: rgba(63,185,80,0.15); border-left-color: var(--green); color: var(--green); }
+  @keyframes pulse-alert { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+  .portfolio-input-section { padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .portfolio-controls { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .portfolio-btn { padding: 6px 14px; background: var(--sage); border: none; color: var(--bg); border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .portfolio-btn:hover { transform: scale(1.05); }
+  .portfolio-btn.secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text2); }
+  .portfolio-btn.secondary:hover { color: var(--text); }
+
+  .portfolio-table { width: 100%; }
+  .portfolio-input-field { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 12px; width: 100%; }
+  .portfolio-input-field:focus { outline: none; border-color: var(--sage); }
+
+  .portfolio-summary-row { padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; background: var(--surface2); }
+  .portfolio-summary-row:last-child { border-bottom: none; }
+  .portfolio-summary-row.total { background: var(--forest); color: var(--sage); }
+
+  .rebalancing-section { padding: 16px; border-top: 1px solid var(--border); }
+  .rebalancing-section h3 { font-size: 13px; color: var(--sage); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .rebalance-sell { margin-bottom: 16px; padding: 12px; background: rgba(248,81,73,0.1); border-left: 3px solid var(--red); border-radius: 4px; }
+  .rebalance-sell .sell-header { color: var(--red); font-weight: 600; margin-bottom: 8px; }
+  .rebalance-sell .realloc-table { width: 100%; font-size: 11px; margin-top: 8px; }
+  .rebalance-sell .realloc-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  .rebalance-sell .realloc-table .col-ticker { font-weight: 600; color: var(--sage); }
+
+  .rebalance-hold { margin-bottom: 8px; padding: 8px 12px; background: rgba(210,153,34,0.1); border-left: 3px solid var(--yellow); color: var(--yellow); font-size: 12px; border-radius: 4px; }
+  .rebalance-empty { padding: 12px 16px; color: var(--text2); font-size: 12px; text-align: center; }
+
   /* Capital Allocation Panel */
   .allocation-input-section { display: flex; gap: 12px; padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
   .allocation-input-group { display: flex; align-items: center; gap: 8px; }
@@ -153,13 +185,6 @@
   .allocation-summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
   .allocation-summary-row:last-child { margin-bottom: 0; }
   .allocation-cash-note { margin-top: 8px; padding: 8px 12px; background: rgba(194,214,155,0.1); border-left: 3px solid var(--sage); color: var(--sage); font-size: 11px; }
-
-  .rebalancing-section { padding: 16px; border-top: 1px solid var(--border); }
-  .rebalancing-section h3 { font-size: 13px; color: var(--sage); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .rebalance-item { margin-bottom: 8px; font-size: 12px; padding-left: 12px; border-left: 2px solid transparent; }
-  .rebalance-item.increase { border-left-color: var(--green); color: var(--green); }
-  .rebalance-item.exit { border-left-color: var(--red); color: var(--red); }
-  .rebalance-empty { font-size: 12px; color: var(--text2); }
 
   .action-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
   .action-buy { background: rgba(63,185,80,0.15); color: var(--green); }
@@ -261,55 +286,47 @@
     </div>
   </div>
 
-  <!-- Capital Allocation Panel -->
+  <!-- Portfolio Tracker Panel -->
   <div class="panel" style="margin-top:16px;">
     <div class="panel-header">
-      <h2>💰 Capital Allocation</h2>
-      <span style="font-size:11px;color:var(--text2);">VND-based portfolio builder</span>
+      <h2>📊 My Portfolio</h2>
+      <span style="font-size:11px;color:var(--text2);">Track your holdings and get rebalancing suggestions</span>
     </div>
 
-    <!-- Input Section -->
-    <div class="allocation-input-section">
-      <div class="allocation-input-group">
-        <label>Total Capital (VND)</label>
-        <input type="text" class="allocation-input" id="capital-input" value="1,000,000,000" placeholder="1,000,000,000" oninput="formatCapitalInput()">
-      </div>
-      <div class="allocation-input-group">
-        <label>Strategy</label>
-        <select class="allocation-select" id="strategy-select" onchange="runAllocation()">
-          <option value="signal-weighted">Signal-Weighted</option>
-          <option value="equal-buy">Equal Weight (Buy only)</option>
-          <option value="top3">Top 3 Concentration</option>
-        </select>
-      </div>
-      <button class="allocation-btn" onclick="runAllocation()">Allocate</button>
-    </div>
+    <!-- Alert Banner -->
+    <div id="portfolio-alert" style="padding:16px;"></div>
 
-    <!-- Allocation Table -->
-    <div class="panel-body">
+    <!-- Portfolio Input Section -->
+    <div class="portfolio-input-section">
+      <div class="portfolio-controls">
+        <button class="portfolio-btn" onclick="savePortfolio()">Save Portfolio</button>
+        <button class="portfolio-btn secondary" onclick="clearPortfolioInputs()">Clear All</button>
+      </div>
+
+      <!-- Portfolio Input Table -->
       <div style="overflow-x:auto;">
-        <table class="allocation-table" id="allocation-table">
+        <table class="portfolio-table" id="portfolio-input-table">
           <thead>
             <tr style="background:var(--forest);">
-              <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Ticker</th>
-              <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Signal</th>
-              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Current Price</th>
-              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Allocated Amount</th>
-              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Suggested Shares</th>
-              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Weight %</th>
-              <th style="text-align:center;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;">Action</th>
+              <th style="text-align:left;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:70px;">Ticker</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:120px;">Avg Buy Price</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:100px;">Shares Held</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:130px;">Invested Amount</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:130px;">Current Value</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:100px;">P&L</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:80px;">P&L %</th>
             </tr>
           </thead>
-          <tbody id="allocation-body"></tbody>
+          <tbody id="portfolio-input-body"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- Summary Section -->
-    <div class="allocation-summary" id="allocation-summary"></div>
+    <!-- Portfolio Summary -->
+    <div id="portfolio-summary" style="border-top: 1px solid var(--border);"></div>
 
-    <!-- Rebalancing Suggestions -->
-    <div class="rebalancing-section" id="rebalancing-section"></div>
+    <!-- Rebalancing Advisor -->
+    <div class="rebalancing-section" id="rebalancing-advisor"></div>
   </div>
 </div>
 
@@ -504,6 +521,174 @@ let autoRefreshInterval = null;
 let isRefreshing = false;
 
 const TARGET_TICKERS = ['ACB', 'VCB', 'MWG', 'MSN', 'HPG', 'KDH', 'TCB', 'IDC', 'MCH', 'FRT', 'GMD', 'CTG'];
+
+// Portfolio data: {ticker: {avgPrice: 0, shares: 0}, ...}
+let portfolio = {};
+
+// Initialize portfolio with all tickers
+function initPortfolio() {
+  portfolio = {};
+  TARGET_TICKERS.forEach(ticker => {
+    portfolio[ticker] = { avgPrice: 0, shares: 0 };
+  });
+}
+initPortfolio();
+
+// ========== PORTFOLIO TRACKER FUNCTIONS ==========
+function renderPortfolioTracker() {
+  let tbody = '';
+  TARGET_TICKERS.forEach(ticker => {
+    const stock = STOCKS.find(s => s.ticker === ticker);
+    if (!stock) return;
+
+    const p = portfolio[ticker];
+    const investedAmount = p.avgPrice * p.shares;
+    const currentValue = stock.price * p.shares;
+    const pnl = currentValue - investedAmount;
+    const pnlPercent = investedAmount > 0 ? (pnl / investedAmount) * 100 : 0;
+
+    const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+    tbody += `<tr>
+      <td style="font-weight:700;color:var(--sage);padding:8px 10px;">${ticker}</td>
+      <td style="text-align:right;padding:8px 10px;"><input type="number" class="portfolio-input-field" value="${p.avgPrice}" oninput="onPortfolioInput('${ticker}', 'avgPrice', this.value)" step="1" min="0"></td>
+      <td style="text-align:right;padding:8px 10px;"><input type="number" class="portfolio-input-field" value="${p.shares}" oninput="onPortfolioInput('${ticker}', 'shares', this.value)" step="100" min="0"></td>
+      <td style="text-align:right;padding:8px 10px;color:var(--text2);">${investedAmount > 0 ? fmtVND(investedAmount) : '—'}</td>
+      <td style="text-align:right;padding:8px 10px;color:var(--text2);">${p.shares > 0 ? fmtVND(currentValue) : '—'}</td>
+      <td style="text-align:right;padding:8px 10px;color:${pnlColor};font-weight:600;">${p.shares > 0 ? (pnl >= 0 ? '+' : '') + fmtVND(pnl) : '—'}</td>
+      <td style="text-align:right;padding:8px 10px;color:${pnlColor};font-weight:600;">${p.shares > 0 ? (pnlPercent >= 0 ? '+' : '') + pnlPercent.toFixed(1) + '%' : '—'}</td>
+    </tr>`;
+  });
+
+  // Calculate totals
+  let totalInvested = 0, totalCurrent = 0;
+  TARGET_TICKERS.forEach(ticker => {
+    const p = portfolio[ticker];
+    totalInvested += p.avgPrice * p.shares;
+    const stock = STOCKS.find(s => s.ticker === ticker);
+    if (stock) totalCurrent += stock.price * p.shares;
+  });
+  const totalPnl = totalCurrent - totalInvested;
+  const totalPnlPercent = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+  const totalPnlColor = totalPnl >= 0 ? 'var(--green)' : 'var(--red)';
+
+  tbody += `<tr style="background:var(--forest);font-weight:700;color:var(--sage);">
+    <td style="padding:8px 10px;">TOTAL</td>
+    <td style="text-align:right;padding:8px 10px;">—</td>
+    <td style="text-align:right;padding:8px 10px;">—</td>
+    <td style="text-align:right;padding:8px 10px;">${totalInvested > 0 ? fmtVND(totalInvested) : '0'}</td>
+    <td style="text-align:right;padding:8px 10px;">${totalCurrent > 0 ? fmtVND(totalCurrent) : '0'}</td>
+    <td style="text-align:right;padding:8px 10px;color:${totalPnlColor};">${totalPnl >= 0 ? '+' : ''}${fmtVND(totalPnl)}</td>
+    <td style="text-align:right;padding:8px 10px;color:${totalPnlColor};">${totalPnlPercent >= 0 ? '+' : ''}${totalPnlPercent.toFixed(1)}%</td>
+  </tr>`;
+
+  document.getElementById('portfolio-input-body').innerHTML = tbody;
+}
+
+function onPortfolioInput(ticker, field, value) {
+  const numValue = parseFloat(value) || 0;
+  portfolio[ticker][field] = numValue;
+  renderPortfolioTracker();
+  updatePortfolioAlerts();
+}
+
+function savePortfolio() {
+  // Portfolio is already stored in the portfolio object (JS variable)
+  alert('Portfolio saved! (stored in browser memory)');
+}
+
+function clearPortfolioInputs() {
+  if (confirm('Clear all portfolio inputs?')) {
+    initPortfolio();
+    renderPortfolioTracker();
+    updatePortfolioAlerts();
+  }
+}
+
+function updatePortfolioAlerts() {
+  // Check held positions for SELL/STRONG SELL signals
+  const alertDiv = document.getElementById('portfolio-alert');
+  const heldTickers = TARGET_TICKERS.filter(ticker => portfolio[ticker].shares > 0);
+  const sellStocks = heldTickers.filter(ticker => {
+    const stock = enriched.find(s => s.ticker === ticker);
+    return stock && (stock.signal.cls === 'sell' || stock.signal.cls === 'strong-sell');
+  });
+
+  if (sellStocks.length > 0) {
+    const tickersStr = sellStocks.join(', ');
+    alertDiv.innerHTML = `<div class="portfolio-alert-banner sell">⚠️ ALERT: ${tickersStr} signaling SELL — Review rebalancing below</div>`;
+  } else if (heldTickers.length > 0) {
+    alertDiv.innerHTML = `<div class="portfolio-alert-banner healthy">✓ Portfolio healthy — all held positions are BUY or HOLD</div>`;
+  } else {
+    alertDiv.innerHTML = '';
+  }
+
+  calculateRebalancing();
+}
+
+function calculateRebalancing() {
+  const rebalDiv = document.getElementById('rebalancing-advisor');
+  const heldTickers = TARGET_TICKERS.filter(ticker => portfolio[ticker].shares > 0);
+  const sellStocks = heldTickers.filter(ticker => {
+    const stock = enriched.find(s => s.ticker === ticker);
+    return stock && (stock.signal.cls === 'sell' || stock.signal.cls === 'strong-sell');
+  });
+  const holdStocks = heldTickers.filter(ticker => {
+    const stock = enriched.find(s => s.ticker === ticker);
+    return stock && stock.signal.cls === 'hold';
+  });
+
+  if (sellStocks.length === 0 && holdStocks.length === 0) {
+    rebalDiv.innerHTML = '<div class="rebalance-empty">No rebalancing suggestions at this time.</div>';
+    return;
+  }
+
+  let html = '<h3>Rebalancing Advisor</h3>';
+
+  // Process SELL positions
+  let freedCapital = 0;
+  if (sellStocks.length > 0) {
+    sellStocks.forEach(ticker => {
+      const stock = enriched.find(s => s.ticker === ticker);
+      const p = portfolio[ticker];
+      const posValue = stock.price * p.shares;
+      freedCapital += posValue;
+
+      html += `<div class="rebalance-sell">
+        <div class="sell-header">SELL ${ticker}: ${fmtVND(p.shares)} shares @ ${fmtVND(stock.price)} = ${fmtVND(posValue)} VND</div>
+        <div>Recommended reallocation:</div>`;
+
+      // Find top 3 BUY/STRONG BUY stocks
+      const topBuys = enriched
+        .filter(s => (s.signal.cls === 'buy' || s.signal.cls === 'strong-buy') && portfolio[s.ticker].shares === 0)
+        .sort((a, b) => b.composite - a.composite)
+        .slice(0, 3);
+
+      if (topBuys.length > 0) {
+        const totalScore = topBuys.reduce((a, s) => a + s.composite, 0);
+        html += `<table class="realloc-table"><tr style="background:var(--surface2);"><td style="font-weight:600;">Ticker</td><td style="text-align:right;">Signal</td><td style="text-align:right;">Score</td><td style="text-align:right;">Price</td><td style="text-align:right;">Suggested Shares</td><td style="text-align:right;">Upside</td></tr>`;
+
+        topBuys.forEach(stock => {
+          const weight = stock.composite / totalScore;
+          const allocAmount = Math.floor(posValue * weight);
+          const suggestedShares = Math.floor(allocAmount / stock.price / 100) * 100;
+          html += `<tr><td class="col-ticker">${stock.ticker}</td><td style="text-align:right;"><span class="signal ${stock.signal.cls}">${stock.signal.label}</span></td><td style="text-align:right;">${stock.composite}</td><td style="text-align:right;">${fmtVND(stock.price)}</td><td style="text-align:right;color:var(--green);font-weight:600;">${fmtVND(suggestedShares)}</td><td style="text-align:right;color:var(--green);">+${stock.upside}%</td></tr>`;
+        });
+        html += `</table>`;
+      } else {
+        html += `<div style="color:var(--text2);font-size:11px;">No available BUY signals for reallocation</div>`;
+      }
+      html += `</div>`;
+    });
+  }
+
+  // Process HOLD positions
+  holdStocks.forEach(ticker => {
+    html += `<div class="rebalance-hold">MONITOR ${ticker} — currently HOLD, no action needed</div>`;
+  });
+
+  rebalDiv.innerHTML = html;
+}
 
 function enrichStocks() {
   const total = weights.fund + weights.tech + weights.mkt;
@@ -940,7 +1125,7 @@ function updateWeights() {
   document.getElementById('wv-fund').textContent = Math.round(weights.fund/total*100) + '%';
   document.getElementById('wv-tech').textContent = Math.round(weights.tech/total*100) + '%';
   document.getElementById('wv-mkt').textContent = Math.round(weights.mkt/total*100) + '%';
-  enrichStocks(); renderKPIs(); renderHeatmap(); renderTable(); runAllocation();
+  enrichStocks(); renderKPIs(); renderHeatmap(); renderTable(); renderPortfolioTracker(); updatePortfolioAlerts();
 }
 
 function switchTab(view, el) {
@@ -1033,6 +1218,8 @@ async function fetchLiveData() {
     renderKPIs();
     renderHeatmap();
     renderTable();
+    renderPortfolioTracker();
+    updatePortfolioAlerts();
 
   } catch (error) {
     console.error('Live data fetch failed:', error);
@@ -1044,6 +1231,8 @@ async function fetchLiveData() {
       renderKPIs();
       renderHeatmap();
       renderTable();
+      renderPortfolioTracker();
+      updatePortfolioAlerts();
     }
   } finally {
     isRefreshing = false;
@@ -1138,6 +1327,8 @@ function init() {
   renderKPIs();
   renderHeatmap();
   renderTable();
+  renderPortfolioTracker();
+  updatePortfolioAlerts();
   runAllocation();
 
   // Start live data fetching and auto-refresh
