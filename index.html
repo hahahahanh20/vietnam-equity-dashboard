@@ -745,33 +745,36 @@ async function fetchLiveData() {
   document.getElementById('refresh-btn').disabled = true;
 
   try {
-    // Fetch HOSE and HNX data
-    const [hoseData, hnxData] = await Promise.all([
-      fetchFromAPI('https://iboard-query.ssi.com.vn/stock/type/s/hose'),
-      fetchFromAPI('https://iboard-query.ssi.com.vn/stock/type/s/hnx')
+    // Fetch stock data and index data from CafeF
+    const [stockData, indexData] = await Promise.all([
+      fetchFromCafeF('https://banggia.cafef.vn/stockhandler.ashx'),
+      fetchFromCafeF('https://banggia.cafef.vn/stockhandler.ashx?index=true')
     ]);
 
-    if (!hoseData && !hnxData) throw new Error('Both API calls failed');
+    if (!stockData) throw new Error('Stock data API call failed');
 
-    // Combine and filter data
-    const allData = [...(hoseData || []), ...(hnxData || [])];
-    const apiStocks = allData.filter(d => TARGET_TICKERS.includes(d.stockSymbol));
+    // Filter stocks for our 12 target tickers
+    const apiStocks = stockData.filter(s => TARGET_TICKERS.includes(s.a));
 
     if (apiStocks.length === 0) throw new Error('No matching tickers found');
 
-    // Update STOCKS array with live data
+    // Update STOCKS array with live data from CafeF
     apiStocks.forEach(apiStock => {
-      const localStock = STOCKS.find(s => s.ticker === apiStock.stockSymbol);
+      const localStock = STOCKS.find(s => s.ticker === apiStock.a);
       if (localStock) {
-        localStock.price = apiStock.matchedPrice || localStock.price;
-        localStock.change = apiStock.priceChangePercent !== undefined ? apiStock.priceChangePercent : localStock.change;
-        localStock.volume = apiStock.nmTotalTradedQty || localStock.volume;
+        // Convert from thousands to VND (multiply by 1000)
+        localStock.price = (apiStock.e || apiStock.lastMatchedPrice) ? (apiStock.e * 1000) : localStock.price;
+        // Calculate percentage change: (price change / ref price) * 100
+        localStock.change = (apiStock.k !== undefined && apiStock.b !== undefined)
+          ? ((apiStock.k / apiStock.b) * 100)
+          : localStock.change;
+        localStock.volume = apiStock.n || apiStock.totalvolume || localStock.volume;
 
         // Determine foreign flow
-        if (apiStock.buyForeignQtty !== undefined && apiStock.sellForeignQtty !== undefined) {
-          if (apiStock.buyForeignQtty > apiStock.sellForeignQtty) {
+        if (apiStock.x !== undefined && apiStock.y !== undefined) {
+          if (apiStock.x > apiStock.y) {
             localStock.foreignFlow = 'Net Buy';
-          } else if (apiStock.buyForeignQtty < apiStock.sellForeignQtty) {
+          } else if (apiStock.x < apiStock.y) {
             localStock.foreignFlow = 'Net Sell';
           } else {
             localStock.foreignFlow = 'Neutral';
@@ -780,14 +783,17 @@ async function fetchLiveData() {
       }
     });
 
-    // Update VN-Index if found
-    const vnIndex = allData.find(d => d.stockSymbol && d.stockSymbol.toUpperCase().includes('VNINDEX'));
-    if (vnIndex) {
-      const vnChange = vnIndex.priceChangePercent || 0;
-      const vnPrice = vnIndex.matchedPrice || 1699.13;
-      const vnColor = vnChange >= 0 ? 'var(--green)' : 'var(--red)';
-      const vnSign = vnChange >= 0 ? '+' : '';
-      document.getElementById('vnindex-display').innerHTML = `VN-Index: <strong style="color:${vnColor}">${vnPrice.toLocaleString('en-US', {maximumFractionDigits: 2})}</strong> <span style="color:${vnColor}">${vnSign}${vnChange.toFixed(2)}%</span>`;
+    // Update VN-Index from index data
+    if (indexData && indexData.length > 0) {
+      const vnIndex = indexData.find(d => d.name === 'VNINDEX');
+      if (vnIndex) {
+        const vnPrice = vnIndex.index || 1699.13;
+        const vnChange = vnIndex.change || 0;
+        const vnPercent = vnIndex.percent || 0;
+        const vnColor = vnPercent >= 0 ? 'var(--green)' : 'var(--red)';
+        const vnSign = vnPercent >= 0 ? '+' : '';
+        document.getElementById('vnindex-display').innerHTML = `VN-Index: <strong style="color:${vnColor}">${vnPrice.toLocaleString('en-US', {maximumFractionDigits: 2})}</strong> <span style="color:${vnColor}">${vnSign}${vnPercent.toFixed(2)}%</span>`;
+      }
     }
 
     liveDataStatus = 'live';
@@ -817,7 +823,7 @@ async function fetchLiveData() {
   }
 }
 
-async function fetchFromAPI(url) {
+async function fetchFromCafeF(url) {
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -825,22 +831,10 @@ async function fetchFromAPI(url) {
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    return data.data || [];
+    return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.warn(`Direct fetch failed for ${url}, trying CORS proxy...`);
-    try {
-      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
-      const response = await fetch(proxyUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      return data.data || [];
-    } catch (proxyError) {
-      console.warn(`CORS proxy also failed for ${url}`);
-      return null;
-    }
+    console.warn(`CafeF API fetch failed for ${url}:`, error);
+    return null;
   }
 }
 
