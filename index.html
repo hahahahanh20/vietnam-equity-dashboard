@@ -323,7 +323,8 @@
               <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:130px;">Invested Amount</th>
               <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:130px;">Current Value</th>
               <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:100px;">P&L</th>
-              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:100px;">LIQUIDITY</th>
+              <th style="text-align:right;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:80px;">P&L %</th>
+              <th style="text-align:center;padding:8px 10px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#fff;width:100px;">LIQUIDITY</th>
             </tr>
           </thead>
           <tbody id="portfolio-input-body"></tbody>
@@ -689,12 +690,46 @@ function calculateRebalancing() {
     return stock && stock.signal.cls === 'hold';
   });
 
-  if (sellStocks.length === 0 && holdStocks.length === 0) {
+  // Check for deep losers (>15% loss) even if signal is BUY/HOLD
+  const deepLosers = heldTickers.filter(ticker => {
+    const p = portfolio[ticker];
+    const stock = STOCKS.find(s => s.ticker === ticker);
+    if (!stock || p.shares === 0 || p.avgPrice === 0) return false;
+    const pnlPct = ((stock.price * p.shares) - (p.avgPrice * p.shares)) / (p.avgPrice * p.shares) * 100;
+    return pnlPct < -15;
+  });
+
+  if (sellStocks.length === 0 && holdStocks.length === 0 && deepLosers.length === 0) {
     rebalDiv.innerHTML = '<div class="rebalance-empty">No rebalancing suggestions at this time.</div>';
     return;
   }
 
-  let html = '<h3>Rebalancing Advisor</h3>';
+  let html = '<h3 style="font-size:14px;font-weight:600;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">Rebalancing Advisor</h3>';
+
+  // Deep losers warning (even if signal is BUY)
+  if (deepLosers.length > 0 && sellStocks.length === 0) {
+    html += '<div style="border-left:3px solid var(--yellow);padding:10px 14px;margin-bottom:12px;background:rgba(245,158,11,0.08);border-radius:0 6px 6px 0;">';
+    html += '<div style="color:var(--yellow);font-weight:600;margin-bottom:6px;">DEEP LOSS POSITIONS</div>';
+    deepLosers.forEach(ticker => {
+      const p = portfolio[ticker];
+      const stock = enriched.find(s => s.ticker === ticker);
+      if (!stock) return;
+      const invested = p.avgPrice * p.shares;
+      const current = stock.price * p.shares;
+      const pnlPct = ((current - invested) / invested * 100).toFixed(1);
+      const signalLabel = stock.signal.label;
+      html += `<div style="margin:4px 0;font-size:12px;">`;
+      html += `<span style="color:var(--red);font-weight:600;">${ticker}</span>: down ${pnlPct}% (${fmtVND(Math.round(current - invested))} VND). `;
+      if (stock.signal.cls.includes('buy')) {
+        html += `Signal is <span style="color:var(--green);">${signalLabel}</span> — consider averaging down or holding for recovery. `;
+        html += `Upside to target: <span style="color:var(--green);">+${stock.upside}%</span>.`;
+      } else if (stock.signal.cls === 'hold') {
+        html += `Signal is <span style="color:var(--yellow);">HOLD</span> — monitor closely, set stop-loss at -25%.`;
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  }
 
   // Process SELL positions
   let freedCapital = 0;
