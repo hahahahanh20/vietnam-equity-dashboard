@@ -22,6 +22,14 @@
   .header-right { display: flex; gap: 16px; align-items: center; }
   .header-right .market-pulse { font-size: 13px; color: var(--sage); }
   .header-right .timestamp { font-size: 11px; color: rgba(255,255,255,0.5); }
+  .header-right .live-status { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; }
+  .live-indicator { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
+  .live-indicator.live { background: var(--green); }
+  .live-indicator.cached { background: var(--yellow); animation: none; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .refresh-btn { padding: 4px 12px; background: var(--sage); border: none; color: var(--bg); border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .refresh-btn:hover { transform: scale(1.05); }
+  .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* Layout */
   .container { max-width: 1600px; margin: 0 auto; padding: 16px; }
@@ -139,6 +147,11 @@
   </div>
   <div class="header-right">
     <div class="market-pulse" id="vnindex-display">VN-Index: —</div>
+    <div class="live-status">
+      <div class="live-indicator live" id="live-dot"></div>
+      <span id="live-label">LIVE</span>
+    </div>
+    <button class="refresh-btn" id="refresh-btn" onclick="manualRefresh()">Refresh</button>
     <div class="timestamp" id="timestamp"></div>
   </div>
 </div>
@@ -405,6 +418,12 @@ let currentFilter = 'all';
 let sortCol = 'composite';
 let sortDir = -1;
 let enriched = [];
+let liveDataStatus = 'cached'; // 'live' or 'cached'
+let lastUpdateTime = null;
+let autoRefreshInterval = null;
+let isRefreshing = false;
+
+const TARGET_TICKERS = ['ACB', 'VCB', 'MWG', 'MSN', 'HPG', 'KDH', 'TCB', 'IDC', 'MCH', 'FRT', 'GMD', 'CTG'];
 
 function enrichStocks() {
   const total = weights.fund + weights.tech + weights.mkt;
@@ -719,14 +738,187 @@ function sortTable(col) {
   renderTable();
 }
 
+// ========== LIVE DATA FETCHING ==========
+async function fetchLiveData() {
+  if (isRefreshing) return;
+  isRefreshing = true;
+  document.getElementById('refresh-btn').disabled = true;
+
+  try {
+    // Fetch HOSE and HNX data
+    const [hoseData, hnxData] = await Promise.all([
+      fetchFromAPI('https://iboard-query.ssi.com.vn/stock/type/s/hose'),
+      fetchFromAPI('https://iboard-query.ssi.com.vn/stock/type/s/hnx')
+    ]);
+
+    if (!hoseData && !hnxData) throw new Error('Both API calls failed');
+
+    // Combine and filter data
+    const allData = [...(hoseData || []), ...(hnxData || [])];
+    const apiStocks = allData.filter(d => TARGET_TICKERS.includes(d.stockSymbol));
+
+    if (apiStocks.length === 0) throw new Error('No matching tickers found');
+
+    // Update STOCKS array with live data
+    apiStocks.forEach(apiStock => {
+      const localStock = STOCKS.find(s => s.ticker === apiStock.stockSymbol);
+      if (localStock) {
+        localStock.price = apiStock.matchedPrice || localStock.price;
+        localStock.change = apiStock.priceChangePercent !== undefined ? apiStock.priceChangePercent : localStock.change;
+        localStock.volume = apiStock.nmTotalTradedQty || localStock.volume;
+
+        // Determine foreign flow
+        if (apiStock.buyForeignQtty !== undefined && apiStock.sellForeignQtty !== undefined) {
+          if (apiStock.buyForeignQtty > apiStock.sellForeignQtty) {
+            localStock.foreignFlow = 'Net Buy';
+          } else if (apiStock.buyForeignQtty < apiStock.sellForeignQtty) {
+            localStock.foreignFlow = 'Net Sell';
+          } else {
+            localStock.foreignFlow = 'Neutral';
+          }
+        }
+      }
+    });
+
+    // Update VN-Index if found
+    const vnIndex = allData.find(d => d.stockSymbol && d.stockSymbol.toUpperCase().includes('VNINDEX'));
+    if (vnIndex) {
+      const vnChange = vnIndex.priceChangePercent || 0;
+      const vnPrice = vnIndex.matchedPrice || 1699.13;
+      const vnColor = vnChange >= 0 ? 'var(--green)' : 'var(--red)';
+      const vnSign = vnChange >= 0 ? '+' : '';
+      document.getElementById('vnindex-display').innerHTML = `VN-Index: <strong style="color:${vnColor}">${vnPrice.toLocaleString('en-US', {maximumFractionDigits: 2})}</strong> <span style="color:${vnColor}">${vnSign}${vnChange.toFixed(2)}%</span>`;
+    }
+
+    liveDataStatus = 'live';
+    lastUpdateTime = new Date();
+    updateLiveStatusDisplay();
+
+    // Re-render with updated data
+    enrichStocks();
+    renderKPIs();
+    renderHeatmap();
+    renderTable();
+
+  } catch (error) {
+    console.error('Live data fetch failed:', error);
+    liveDataStatus = 'cached';
+    updateLiveStatusDisplay();
+    if (Object.keys(STOCKS).length > 0) {
+      // Still show existing data
+      enrichStocks();
+      renderKPIs();
+      renderHeatmap();
+      renderTable();
+    }
+  } finally {
+    isRefreshing = false;
+    document.getElementById('refresh-btn').disabled = false;
+  }
+}
+
+async function fetchFromAPI(url) {
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return data.data || [];
+  } catch (error) {
+    console.warn(`Direct fetch failed for ${url}, trying CORS proxy...`);
+    try {
+      const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      return data.data || [];
+    } catch (proxyError) {
+      console.warn(`CORS proxy also failed for ${url}`);
+      return null;
+    }
+  }
+}
+
+function updateLiveStatusDisplay() {
+  const dot = document.getElementById('live-dot');
+  const label = document.getElementById('live-label');
+  const timestamp = document.getElementById('timestamp');
+
+  dot.className = 'live-indicator ' + liveDataStatus;
+
+  if (liveDataStatus === 'live') {
+    label.textContent = 'LIVE';
+    if (lastUpdateTime) {
+      timestamp.textContent = `Updated ${lastUpdateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    }
+  } else {
+    label.textContent = 'CACHED';
+    timestamp.textContent = 'Using cached data - API unavailable';
+  }
+}
+
+function manualRefresh() {
+  fetchLiveData();
+}
+
+function isMarketHours() {
+  // Vietnam time is UTC+7
+  // Market hours: 9:00-15:00 (09:00-15:00 UTC+7)
+  const now = new Date();
+  const vietnamTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const hours = vietnamTime.getHours();
+  const minutes = vietnamTime.getMinutes();
+  const dayOfWeek = vietnamTime.getDay();
+
+  // Only weekdays (Monday-Friday)
+  if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+
+  const timeInMinutes = hours * 60 + minutes;
+  return timeInMinutes >= 9 * 60 && timeInMinutes < 15 * 60;
+}
+
+function startAutoRefresh() {
+  // Clear existing interval
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+
+  // Fetch immediately on market hours
+  if (isMarketHours()) {
+    fetchLiveData();
+    autoRefreshInterval = setInterval(() => {
+      if (isMarketHours()) {
+        fetchLiveData();
+      }
+    }, 30000); // 30 seconds
+  } else {
+    // Check every minute if market hours started
+    autoRefreshInterval = setInterval(() => {
+      if (isMarketHours()) {
+        fetchLiveData();
+      }
+    }, 60000); // 1 minute
+  }
+}
+
 // ========== INIT ==========
 function init() {
-  document.getElementById('timestamp').textContent = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  // Initial display setup
+  lastUpdateTime = new Date();
+  updateLiveStatusDisplay();
   document.getElementById('vnindex-display').innerHTML = 'VN-Index: <strong style="color:var(--red)">1,699.13</strong> <span style="color:var(--red)">-0.86%</span>';
+
+  // Enrich and render with initial data
   enrichStocks();
   renderKPIs();
   renderHeatmap();
   renderTable();
+
+  // Start live data fetching and auto-refresh
+  startAutoRefresh();
 }
 init();
 </script>
