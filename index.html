@@ -606,22 +606,56 @@ function clearPortfolioInputs() {
 }
 
 function updatePortfolioAlerts() {
-  // Check held positions for SELL/STRONG SELL signals
   const alertDiv = document.getElementById('portfolio-alert');
   const heldTickers = TARGET_TICKERS.filter(ticker => portfolio[ticker].shares > 0);
+  if (heldTickers.length === 0) { alertDiv.innerHTML = ''; calculateRebalancing(); return; }
+
+  // Check signals
   const sellStocks = heldTickers.filter(ticker => {
     const stock = enriched.find(s => s.ticker === ticker);
     return stock && (stock.signal.cls === 'sell' || stock.signal.cls === 'strong-sell');
   });
 
+  // Check actual P&L
+  let totalInvested = 0, totalCurrent = 0;
+  const losers = [];
+  heldTickers.forEach(ticker => {
+    const p = portfolio[ticker];
+    const stock = STOCKS.find(s => s.ticker === ticker);
+    if (p.shares > 0 && p.avgPrice > 0 && stock) {
+      const invested = p.avgPrice * p.shares;
+      const current = stock.price * p.shares;
+      totalInvested += invested;
+      totalCurrent += current;
+      const pnlPct = ((current - invested) / invested * 100);
+      if (pnlPct < -5) losers.push({ ticker, pnlPct: pnlPct.toFixed(1) });
+    }
+  });
+  const totalPnlPct = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested * 100) : 0;
+  const totalPnl = totalCurrent - totalInvested;
+
+  // Build alert banners
+  let alerts = [];
+
   if (sellStocks.length > 0) {
-    const tickersStr = sellStocks.join(', ');
-    alertDiv.innerHTML = `<div class="portfolio-alert-banner sell">⚠️ ALERT: ${tickersStr} signaling SELL — Review rebalancing below</div>`;
-  } else if (heldTickers.length > 0) {
-    alertDiv.innerHTML = `<div class="portfolio-alert-banner healthy">✓ Portfolio healthy — all held positions are BUY or HOLD</div>`;
-  } else {
-    alertDiv.innerHTML = '';
+    alerts.push(`<div class="portfolio-alert-banner sell">⚠️ SELL SIGNAL: ${sellStocks.join(', ')} — Exit recommended. Review rebalancing below.</div>`);
   }
+
+  if (totalPnlPct < -10) {
+    alerts.push(`<div class="portfolio-alert-banner sell">🔴 PORTFOLIO DOWN ${totalPnlPct.toFixed(1)}% (${totalPnl < 0 ? '' : '+'}${Math.round(totalPnl).toLocaleString()} VND) — Consider defensive rebalancing.</div>`);
+  } else if (totalPnlPct < 0) {
+    alerts.push(`<div class="portfolio-alert-banner warning" style="background:rgba(210,153,34,0.15);border-left-color:var(--yellow);">⚠️ PORTFOLIO UNDERWATER: ${totalPnlPct.toFixed(1)}% (${Math.round(totalPnl).toLocaleString()} VND) — ${losers.length > 0 ? 'Biggest drags: ' + losers.map(l => l.ticker + ' (' + l.pnlPct + '%)').join(', ') : 'Monitor closely.'}</div>`);
+  }
+
+  if (losers.length > 0 && sellStocks.length === 0 && totalPnlPct >= 0) {
+    alerts.push(`<div class="portfolio-alert-banner warning" style="background:rgba(210,153,34,0.15);border-left-color:var(--yellow);">⚠️ UNDERPERFORMERS: ${losers.map(l => l.ticker + ' (' + l.pnlPct + '%)').join(', ')} — dragging portfolio returns.</div>`);
+  }
+
+  if (alerts.length === 0) {
+    alerts.push(`<div class="portfolio-alert-banner healthy">✓ Portfolio in profit (+${totalPnlPct.toFixed(1)}%) — all held positions signaling BUY or HOLD.</div>`);
+  }
+
+  alertDiv.innerHTML = alerts.join('');
 
   calculateRebalancing();
 }
